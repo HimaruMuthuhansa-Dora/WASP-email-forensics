@@ -34,24 +34,6 @@ Python 3.7+
 colorama
 ```
 
-## 🚀 Installation
-
-### 1. Clone the Repository
-```bash
-git clone https://github.com/YOUR_USERNAME/email-forensics-tool.git
-cd email-forensics-tool
-```
-
-### 2. Install Dependencies
-```bash
-pip install -r requirements.txt
-```
-
-Or install manually:
-```bash
-pip install colorama
-```
-
 ## 💻 Usage
 
 ### Basic Usage
