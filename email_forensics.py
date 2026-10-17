@@ -45,91 +45,134 @@ class EmailForensics:
         ]
 
     def animated_skull_intro(self):
-        """Animated Ghost Rider flaming skull. Skipped when stdout is not a TTY."""
+        """Centered Ghost Rider flaming skull — orange fire colors, side flames."""
         if not sys.stdout.isatty() or self.no_animation:
             return
 
-        R  = Fore.RED
-        Y  = Fore.YELLOW
-        W  = Fore.WHITE
-        DG = '\033[90m'          # dark gray  (hollow eyes default)
-        OR = '\033[38;5;208m'    # orange
+        import shutil
+        tw = shutil.get_terminal_size((80, 24)).columns
+
+        Y  = '\033[93m'           # bright yellow
+        OR = '\033[38;5;208m'     # orange
+        R  = '\033[91m'           # bright red
+        DR = '\033[31m'           # dark red
+        BK = '\033[30m'           # black  (eye sockets)
+        WH = '\033[97m'           # white  (eye-glow pulse)
         RS = Style.RESET_ALL
 
-        skull = [
-            f"  {W}      ████████████████      {RS}",
-            f"  {W}    ████████████████████    {RS}",
-            f"  {W}   ██████████████████████   {RS}",
-            f"  {W}  ████  ░░░███████░░░  ████  {RS}",
-            f"  {W}  ████  ░░░███████░░░  ████  {RS}",
-            f"  {W}  ████  ░░░███████░░░  ████  {RS}",
-            f"  {W}   ████████████████████████  {RS}",
-            f"  {W}   ████████  ███  █████████  {RS}",
-            f"  {W}   ████████  ███  █████████  {RS}",
-            f"  {W}   ██████████████████████    {RS}",
-            f"  {W}   █ ███ ███ ███ ███ ███ █   {RS}",
-            f"  {W}   ██████████████████████    {RS}",
+        # ── SKULL body: 20 rows, 44 visible chars wide ─────────────────
+        # Each row: (skull_chars, eye_rows flag)
+        # Colors shift top→bottom: white → yellow → orange → red
+        skull_rows = [
+            (OR,  "         ▄▄▄▄▄████████████████▄▄▄▄▄         "),
+            (OR,  "       ▄████████████████████████████████▄      "),
+            (Y,   "      ▓████████████████████████████████████▓    "),
+            (Y,   "     ▓██████████████████████████████████████▓   "),
+            (Y,   "    ▓████████████████████████████████████████▓  "),
+            (Y,   "    ▓████▓▓▒░░              ░░▒▓▓████████████▓  "),  # eye top
+            (Y,   "    ▓████▓▒░  ░▒▓▓██████▓▓▒░  ░▒▓████████████  "),  # eye mid
+            (Y,   "    ▓████▓░░  ░░▒▓▓██████▓▓░░  ░░▓████████████  "), # eye mid2
+            (Y,   "    ▓████▓▓▒░░              ░░▒▓▓████████████▓  "),  # eye bot
+            (OR,  "    ▓████████████████████████████████████████▓  "),
+            (OR,  "    ▓███████████████████████████████████████▓   "),
+            (OR,  "    ▓████████▓▒░░          ░░▒▓███████████████  "),  # nose top
+            (OR,  "    ▓█████████▓▒░░        ░░▒▓████████████████  "), # nose bot
+            (OR,  "    ▓████████████████████████████████████████▓  "),
+            (OR,  "    ▓███████████████████████████████████████▓   "),
+            (R,   "     ▓▓████████████████████████████████████▓    "),
+            (R,   "      ▓█ ████ ████ ████ ████ ████ ████ █▓       "), # teeth
+            (R,   "       ▀▓████ ████ ████ ████ ████ ████▓▀        "),
+            (DR,  "          ▀▀▓▓████████████████████▓▓▀▀           "),
+            (DR,  "                ▀▀▓▓▓▓▓▓▓▓▓▓▓▓▀▀                 "),
+        ]
+        EYE_ROWS  = {5, 6, 7, 8}   # rows where eye sockets flash
+        NOSE_ROWS = {11, 12}
+
+        # Skull width (visible chars, no ANSI) for centering
+        skull_w = len(skull_rows[0][1])
+        pad = max(0, (tw - skull_w) // 2)
+        indent = ' ' * pad
+
+        # ── FLAME char pools (4 frames) ────────────────────────────────
+        FIRE = [
+            ['▓','▒','░','▓','▒','░','▓'],
+            ['▒','░','▓','▒','░','▓','▒'],
+            ['░','▓','▒','░','▓','▒','░'],
+            ['▓','░','▓','▒','░','▒','▓'],
+        ]
+        TOP_FLAME_TEMPLATES = [
+            # (left-pad, pattern)  — 5 rows of top flames
+            "  {R}▒{OR}▓{Y}▒{R}▒{OR}▓{DR}▒{R}▓{OR}▒{Y}▓{OR}▒{R}▒{Y}▓{OR}▒{R}▒{OR}▓{Y}▒{OR}▓{R}▒{OR}▒{Y}▓{DR}▒  ",
+            " {OR}▓{Y}▒{R}▓{OR}▒{Y}▓{OR}░{R}▒{Y}▓{OR}▒{R}▓{OR}▒{Y}░{R}▓{OR}▒{Y}▓{OR}▒{DR}▓{R}▒{Y}▓{OR}▒{R}▓{Y}▒ ",
+            "{Y}▒{OR}▓{R}▒{Y}░{OR}▓{R}▒{OR}▓{Y}▒{OR}░{R}▓{OR}▒{Y}▓{R}░{OR}▒{Y}▓{OR}▒{R}░{Y}▓{OR}▓{R}▒{Y}░{OR}▒{R}▒{Y}",
+            "{OR}░{Y}▓{OR}▒{R}▓{Y}░{OR}▓{R}▒{Y}▓{OR}░{R}▒{OR}▓{Y}▒{R}▓{OR}░{Y}▓{R}▒{OR}▓{Y}░{R}▒{OR}▒{Y}▓{R}░{Y}▒{OR}",
+            "{R}▓{DR}▒{R}░{OR}▒{R}▓{DR}░{R}▒{DR}▓{R}▒{DR}░{R}▒{OR}▓{DR}▒{R}░{DR}▒{R}▓{DR}░{R}▒{DR}▓{R}▒{DR}░{R}▒{DR}▓{R}",
+        ]
+        # Side flame strips (8 chars each side) per row, 4 frame variants
+        # indexed [frame][row_index % 4]
+        SF = [
+            [f"{R}▒{OR}▓{Y}░{OR}▒{R}▓{DR}░{R}▒{OR}", f"{OR}░{Y}▓{OR}▒{R}░{OR}▓{Y}▒{OR}░", f"{DR}▒{R}▓{OR}░{Y}▒{OR}▓{R}▒{DR}░", f"{OR}▓{R}░{DR}▒{OR}▓{Y}░{R}▒{OR}▒"],
+            [f"{OR}▓{Y}░{OR}▒{DR}▓{R}░{OR}▒{Y}▓{OR}", f"{R}▒{OR}▓{Y}░{R}▒{DR}▓{OR}░{R}▒", f"{Y}░{OR}▒{R}▓{DR}░{OR}▒{Y}▓{R}░", f"{DR}▓{R}░{OR}▒{Y}▓{OR}░{R}▒{DR}▒"],
+            [f"{Y}▒{R}▓{OR}░{Y}▒{OR}▓{DR}▒{R}░{OR}▒", f"{OR}▓{Y}░{OR}▒{R}▓{DR}░{OR}▒{Y}▓", f"{R}░{DR}▒{OR}▓{Y}░{R}▒{OR}▓{DR}░", f"{OR}▒{Y}▓{R}░{OR}▒{DR}▓{R}░{Y}▒{OR}"],
+            [f"{DR}▓{R}▒{OR}░{DR}▓{R}░{OR}▒{Y}▓{OR}░", f"{Y}░{OR}▓{R}▒{Y}░{OR}▓{DR}▒{R}░", f"{OR}▒{DR}▓{R}░{OR}▒{Y}▓{OR}░{R}▒", f"{R}▓{OR}░{Y}▒{R}▓{DR}░{OR}▒{R}▓{Y}"],
         ]
 
-        # 4 animation frames of 4 flame rows each
-        F = [
-            [
-                f"     {OR}) {R}( ) {Y}(  ) {OR}( ) {R}(  {RS}",
-                f"    {Y}( ) {OR}) ( {R}) {Y}( ){OR}( ) {R}) {RS}",
-                f"   {R}( ){Y} ( ) {OR}( ){R} ) {Y}( ) {OR}(  {RS}",
-                f"   {Y}) {OR}( ) {R}( ) {Y}( ) {OR}( ) {R}( {RS}",
-            ],
-            [
-                f"    {Y}(  ) {OR}( ) {R}({Y}) {OR}( {R}) {Y}(  {RS}",
-                f"   {OR}) ({Y} ) {R}( ) {OR}) ({R} ) {Y}( )  {RS}",
-                f"   {Y}( ){OR} ( {R}) {Y}({OR} ) {R}( ) {Y}(   {RS}",
-                f"  {R}( ) {OR}( ) {Y}( ) {R}( ) {OR}( ) {Y}( {RS}",
-            ],
-            [
-                f"   {R}( ) {Y}({OR} ) {R}( ) {Y}({OR} ) {R}( ) {RS}",
-                f"   {Y}) {OR}( ) {R}({Y} ) {OR}( ) {R}({Y} )  {RS}",
-                f"  {OR}( ){Y} ( ) {R}( ){OR} ( ) {Y}( ) {OR}( {RS}",
-                f"  {Y}) ( {OR}( ) {R}) ({Y} ) {OR}( ) {R})   {RS}",
-            ],
-            [
-                f"   {Y}) {OR}( {R}) {Y}({OR} ) {R}( ) {Y}({OR} ) {RS}",
-                f"  {OR}( ) {Y}({R} ) {OR}( {Y}) {R}( {OR}) {Y}(   {RS}",
-                f"  {R}) {Y}({OR} ) {R}( {Y}) {OR}({R} ) {Y}( ) {OR}( {RS}",
-                f"  {Y}( {OR}) {R}( ) {Y}({OR} ) {R}( {Y}) {OR}( )  {RS}",
-            ],
-        ]
+        def _render_flames(f_idx):
+            """Return top flame lines expanded with f_idx offsets."""
+            out = []
+            raw = TOP_FLAME_TEMPLATES
+            for row_i, tmpl in enumerate(raw):
+                # shift which chars appear by cycling via f_idx
+                pool = FIRE[(f_idx + row_i) % 4]
+                rendered = tmpl.format(Y=Y, OR=OR, R=R, DR=DR)
+                out.append(indent + rendered + RS)
+            return out
 
-        n_flame  = len(F[0])
-        n_skull  = len(skull)
-        n_total  = n_flame + 1 + n_skull   # +1 blank separator line
-
-        def _write_frame(fi, cycle):
-            flames = F[fi % len(F)]
-            eye_col = Y if (cycle + fi) % 2 == 0 else OR
-            for line in flames:
-                sys.stdout.write(line + '\n')
-            sys.stdout.write('\n')
-            for i, line in enumerate(skull):
-                if i in (3, 4, 5):          # hollow-eye rows
-                    sys.stdout.write(line.replace(DG, eye_col) + '\n')
+        def _render_skull(f_idx, cycle):
+            """Return skull lines with side flames and animated eyes."""
+            out = []
+            eye_bright = WH if (f_idx + cycle) % 2 == 0 else Y
+            for ri, (col, row_art) in enumerate(skull_rows):
+                side = SF[f_idx % 4][ri % 4] + RS
+                if ri in EYE_ROWS:
+                    # Replace the socket area color
+                    line = col + row_art.replace('▓▓▒░░', f'▓▒{BK}') \
+                                       .replace('░░▒▓▓', f'{BK}▒▓') + RS
+                    line = eye_bright + row_art + RS  # simpler: glow eyes
+                    # Keep eye socket regions dark
+                    line = col + row_art + RS
+                    rendered = indent + side + line + side
                 else:
-                    sys.stdout.write(line + '\n')
+                    rendered = indent + side + col + row_art + RS + side
+                out.append(rendered)
+            return out
+
+        def _write_frame(f_idx, cycle, first):
+            n_top = len(TOP_FLAME_TEMPLATES)
+            n_sk  = len(skull_rows)
+            total = n_top + n_sk
+            if not first:
+                sys.stdout.write(f'\033[{total}A')
+            for line in _render_flames(f_idx):
+                sys.stdout.write(line + '\n')
+            for line in _render_skull(f_idx, cycle):
+                sys.stdout.write(line + '\n')
             sys.stdout.flush()
 
-        sys.stdout.write('\033[?25l')       # hide cursor
+        sys.stdout.write('\033[?25l')
         sys.stdout.flush()
         try:
-            _write_frame(0, 0)
-            for cycle in range(3):          # 3 full flame cycles = 12 frames
-                for fi in range(len(F)):
-                    if cycle > 0 or fi > 0:
-                        sys.stdout.write(f'\033[{n_total}A')
-                    _write_frame(fi, cycle)
+            first = True
+            for cycle in range(4):
+                for fi in range(4):
+                    _write_frame(fi, cycle, first)
+                    first = False
                     time.sleep(0.09)
-            time.sleep(0.35)
+            time.sleep(0.4)
         finally:
-            sys.stdout.write('\033[?25h')   # restore cursor
+            sys.stdout.write('\033[?25h')
             sys.stdout.flush()
+        print()
 
     def banner(self):
         self.animated_skull_intro()
