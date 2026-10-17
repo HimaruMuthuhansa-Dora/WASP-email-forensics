@@ -2,6 +2,7 @@
 
 import re
 import sys
+import time
 import argparse
 import json
 from datetime import datetime, timezone
@@ -22,8 +23,9 @@ HOMOGRAPH_CHARS = re.compile(r'[а-яЀ-Яà-ÿĀ-ſ]')
 
 
 class EmailForensics:
-    def __init__(self, verbose=False):
+    def __init__(self, verbose=False, no_animation=False):
         self.verbose = verbose
+        self.no_animation = no_animation
         self.headers = {}
         self.analysis = {}
         self.suspicious_tlds = [
@@ -42,7 +44,95 @@ class EmailForensics:
             'act now', 'limited time'
         ]
 
+    def animated_skull_intro(self):
+        """Animated Ghost Rider flaming skull. Skipped when stdout is not a TTY."""
+        if not sys.stdout.isatty() or self.no_animation:
+            return
+
+        R  = Fore.RED
+        Y  = Fore.YELLOW
+        W  = Fore.WHITE
+        DG = '\033[90m'          # dark gray  (hollow eyes default)
+        OR = '\033[38;5;208m'    # orange
+        RS = Style.RESET_ALL
+
+        skull = [
+            f"  {W}      ████████████████      {RS}",
+            f"  {W}    ████████████████████    {RS}",
+            f"  {W}   ██████████████████████   {RS}",
+            f"  {W}  ████  ░░░███████░░░  ████  {RS}",
+            f"  {W}  ████  ░░░███████░░░  ████  {RS}",
+            f"  {W}  ████  ░░░███████░░░  ████  {RS}",
+            f"  {W}   ████████████████████████  {RS}",
+            f"  {W}   ████████  ███  █████████  {RS}",
+            f"  {W}   ████████  ███  █████████  {RS}",
+            f"  {W}   ██████████████████████    {RS}",
+            f"  {W}   █ ███ ███ ███ ███ ███ █   {RS}",
+            f"  {W}   ██████████████████████    {RS}",
+        ]
+
+        # 4 animation frames of 4 flame rows each
+        F = [
+            [
+                f"     {OR}) {R}( ) {Y}(  ) {OR}( ) {R}(  {RS}",
+                f"    {Y}( ) {OR}) ( {R}) {Y}( ){OR}( ) {R}) {RS}",
+                f"   {R}( ){Y} ( ) {OR}( ){R} ) {Y}( ) {OR}(  {RS}",
+                f"   {Y}) {OR}( ) {R}( ) {Y}( ) {OR}( ) {R}( {RS}",
+            ],
+            [
+                f"    {Y}(  ) {OR}( ) {R}({Y}) {OR}( {R}) {Y}(  {RS}",
+                f"   {OR}) ({Y} ) {R}( ) {OR}) ({R} ) {Y}( )  {RS}",
+                f"   {Y}( ){OR} ( {R}) {Y}({OR} ) {R}( ) {Y}(   {RS}",
+                f"  {R}( ) {OR}( ) {Y}( ) {R}( ) {OR}( ) {Y}( {RS}",
+            ],
+            [
+                f"   {R}( ) {Y}({OR} ) {R}( ) {Y}({OR} ) {R}( ) {RS}",
+                f"   {Y}) {OR}( ) {R}({Y} ) {OR}( ) {R}({Y} )  {RS}",
+                f"  {OR}( ){Y} ( ) {R}( ){OR} ( ) {Y}( ) {OR}( {RS}",
+                f"  {Y}) ( {OR}( ) {R}) ({Y} ) {OR}( ) {R})   {RS}",
+            ],
+            [
+                f"   {Y}) {OR}( {R}) {Y}({OR} ) {R}( ) {Y}({OR} ) {RS}",
+                f"  {OR}( ) {Y}({R} ) {OR}( {Y}) {R}( {OR}) {Y}(   {RS}",
+                f"  {R}) {Y}({OR} ) {R}( {Y}) {OR}({R} ) {Y}( ) {OR}( {RS}",
+                f"  {Y}( {OR}) {R}( ) {Y}({OR} ) {R}( {Y}) {OR}( )  {RS}",
+            ],
+        ]
+
+        n_flame  = len(F[0])
+        n_skull  = len(skull)
+        n_total  = n_flame + 1 + n_skull   # +1 blank separator line
+
+        def _write_frame(fi, cycle):
+            flames = F[fi % len(F)]
+            eye_col = Y if (cycle + fi) % 2 == 0 else OR
+            for line in flames:
+                sys.stdout.write(line + '\n')
+            sys.stdout.write('\n')
+            for i, line in enumerate(skull):
+                if i in (3, 4, 5):          # hollow-eye rows
+                    sys.stdout.write(line.replace(DG, eye_col) + '\n')
+                else:
+                    sys.stdout.write(line + '\n')
+            sys.stdout.flush()
+
+        sys.stdout.write('\033[?25l')       # hide cursor
+        sys.stdout.flush()
+        try:
+            _write_frame(0, 0)
+            for cycle in range(3):          # 3 full flame cycles = 12 frames
+                for fi in range(len(F)):
+                    if cycle > 0 or fi > 0:
+                        sys.stdout.write(f'\033[{n_total}A')
+                    _write_frame(fi, cycle)
+                    time.sleep(0.09)
+            time.sleep(0.35)
+        finally:
+            sys.stdout.write('\033[?25h')   # restore cursor
+            sys.stdout.flush()
+
     def banner(self):
+        self.animated_skull_intro()
         print(f"""
 {Fore.CYAN}╔═══════════════════════════════════════════════════════════════╗
 ║         EMAIL FORENSICS & HEADER ANALYSIS TOOL v2.0          ║
@@ -620,12 +710,13 @@ def main():
     p.add_argument('-j', '--json', help='Save JSON analysis to file')
     p.add_argument('-v', '--verbose', action='store_true', help='Enable verbose output')
     p.add_argument('--no-color', action='store_true', help='Disable colored output')
+    p.add_argument('--no-animation', action='store_true', help='Skip skull animation')
     a = p.parse_args()
 
     if a.no_color:
         init(strip=True, autoreset=True)
 
-    ef = EmailForensics(a.verbose)
+    ef = EmailForensics(a.verbose, no_animation=a.no_animation)
     ef.banner()
 
     if a.file:
