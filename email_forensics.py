@@ -45,129 +45,106 @@ class EmailForensics:
         ]
 
     def animated_skull_intro(self):
-        """Centered Ghost Rider flaming skull — orange fire colors, side flames."""
+        """Centered Ghost Rider ASCII skull with animated fire — no block chars."""
         if not sys.stdout.isatty() or self.no_animation:
             return
 
         import shutil
         tw = shutil.get_terminal_size((80, 24)).columns
 
-        Y  = '\033[93m'           # bright yellow
-        OR = '\033[38;5;208m'     # orange
-        R  = '\033[91m'           # bright red
-        DR = '\033[31m'           # dark red
-        BK = '\033[30m'           # black  (eye sockets)
-        WH = '\033[97m'           # white  (eye-glow pulse)
+        Y  = '\033[93m'        # bright yellow
+        OR = '\033[38;5;208m'  # orange
+        R  = '\033[91m'        # bright red
+        DR = '\033[31m'        # dark red
+        W  = '\033[97m'        # white
         RS = Style.RESET_ALL
 
-        # ── SKULL body: 20 rows, 44 visible chars wide ─────────────────
-        # Each row: (skull_chars, eye_rows flag)
-        # Colors shift top→bottom: white → yellow → orange → red
-        skull_rows = [
-            (OR,  "         ▄▄▄▄▄████████████████▄▄▄▄▄         "),
-            (OR,  "       ▄████████████████████████████████▄      "),
-            (Y,   "      ▓████████████████████████████████████▓    "),
-            (Y,   "     ▓██████████████████████████████████████▓   "),
-            (Y,   "    ▓████████████████████████████████████████▓  "),
-            (Y,   "    ▓████▓▓▒░░              ░░▒▓▓████████████▓  "),  # eye top
-            (Y,   "    ▓████▓▒░  ░▒▓▓██████▓▓▒░  ░▒▓████████████  "),  # eye mid
-            (Y,   "    ▓████▓░░  ░░▒▓▓██████▓▓░░  ░░▓████████████  "), # eye mid2
-            (Y,   "    ▓████▓▓▒░░              ░░▒▓▓████████████▓  "),  # eye bot
-            (OR,  "    ▓████████████████████████████████████████▓  "),
-            (OR,  "    ▓███████████████████████████████████████▓   "),
-            (OR,  "    ▓████████▓▒░░          ░░▒▓███████████████  "),  # nose top
-            (OR,  "    ▓█████████▓▒░░        ░░▒▓████████████████  "), # nose bot
-            (OR,  "    ▓████████████████████████████████████████▓  "),
-            (OR,  "    ▓███████████████████████████████████████▓   "),
-            (R,   "     ▓▓████████████████████████████████████▓    "),
-            (R,   "      ▓█ ████ ████ ████ ████ ████ ████ █▓       "), # teeth
-            (R,   "       ▀▓████ ████ ████ ████ ████ ████▓▀        "),
-            (DR,  "          ▀▀▓▓████████████████████▓▓▀▀           "),
-            (DR,  "                ▀▀▓▓▓▓▓▓▓▓▓▓▓▓▀▀                 "),
+        # ── Pure ASCII skull (no block chars) ─────────────────────────
+        # 20 rows × 52 chars.  Spaces inside eye/nose sockets stay dark.
+        SKULL = [
+            r"          .,-:;//;:=,          ",
+            r"      . :H@@@MM@M#H/.,+%;,     ",
+            r"   ,/X+ +M@@M@MM%=,-%HMMM@X/,  ",
+            r"  -+@MM; $M@@MH+-,;XMMMM@MMMM/ ",
+            r" ;M@@M@ H;M@M  /X MX/;HM@@M@+  ",
+            r" M@@M@,  ;HM@M=+X'X:MMMM;_M@@M ",  # ← eye row
+            r" M@M@@'   /H=,%%%%; :HM@M@M@M@/",
+            r" @M@@M-    -,;###;HX-'%+$M@@@M ",
+            r" M@@MH         `###'    ;HM@M@+ ",  # ← eye row
+            r" #@M@@M@-   -    `'    /M@M@@+  ",
+            r"  ;M@@@MH$=    ,=;=-.  -XMMM@M  ",
+            r"   .H@@@@M@+/$$@MMMM:.HMMM@M@M  ",
+            r"    +M@MH;:%HX$$$%%%+;MMMM@MM;  ",
+            r"     /MMMM@MMH@$$$%+HM(C)MH%;'  ",  # teeth hint
+            r"      'oo' M@M$$$, .H@)M@M;      ",
+            r"          .$$$$.   .$$$$,         ",
+            r"          +$$$$    +$$$$          ",
+            r"          *$$$$    *$$$$          ",
         ]
-        EYE_ROWS  = {5, 6, 7, 8}   # rows where eye sockets flash
-        NOSE_ROWS = {11, 12}
 
-        # Skull width (visible chars, no ANSI) for centering
-        skull_w = len(skull_rows[0][1])
+        # Color each row: top rows yellow, middle orange, bottom red
+        ROW_COLORS = (
+            [Y]  * 4 +
+            [OR] * 8 +
+            [R]  * 4 +
+            [DR] * 2
+        )
+
+        skull_w = max(len(r) for r in SKULL)
         pad = max(0, (tw - skull_w) // 2)
         indent = ' ' * pad
 
-        # ── FLAME char pools (4 frames) ────────────────────────────────
-        FIRE = [
-            ['▓','▒','░','▓','▒','░','▓'],
-            ['▒','░','▓','▒','░','▓','▒'],
-            ['░','▓','▒','░','▓','▒','░'],
-            ['▓','░','▓','▒','░','▒','▓'],
+        # ── Animated flame rows (top, 6 rows) ─────────────────────────
+        # Each frame is built by picking chars from a cycling pool
+        FLAME_POOL = [
+            list(")  ( ) (  ) ( ) (  ) ( ) (  ) ( ) (  )"),
+            list("(  ) ( ) (  ) ( ) (  ) ( ) (  ) ( ) (  "),
+            list(") ( ) (  ) ( ) (  ) ( ) (  ) ( ) (  ) ("),
+            list("( ) (  ) ( ) (  ) ( ) (  ) ( ) (  ) ( )"),
         ]
-        TOP_FLAME_TEMPLATES = [
-            # (left-pad, pattern)  — 5 rows of top flames
-            "  {R}▒{OR}▓{Y}▒{R}▒{OR}▓{DR}▒{R}▓{OR}▒{Y}▓{OR}▒{R}▒{Y}▓{OR}▒{R}▒{OR}▓{Y}▒{OR}▓{R}▒{OR}▒{Y}▓{DR}▒  ",
-            " {OR}▓{Y}▒{R}▓{OR}▒{Y}▓{OR}░{R}▒{Y}▓{OR}▒{R}▓{OR}▒{Y}░{R}▓{OR}▒{Y}▓{OR}▒{DR}▓{R}▒{Y}▓{OR}▒{R}▓{Y}▒ ",
-            "{Y}▒{OR}▓{R}▒{Y}░{OR}▓{R}▒{OR}▓{Y}▒{OR}░{R}▓{OR}▒{Y}▓{R}░{OR}▒{Y}▓{OR}▒{R}░{Y}▓{OR}▓{R}▒{Y}░{OR}▒{R}▒{Y}",
-            "{OR}░{Y}▓{OR}▒{R}▓{Y}░{OR}▓{R}▒{Y}▓{OR}░{R}▒{OR}▓{Y}▒{R}▓{OR}░{Y}▓{R}▒{OR}▓{Y}░{R}▒{OR}▒{Y}▓{R}░{Y}▒{OR}",
-            "{R}▓{DR}▒{R}░{OR}▒{R}▓{DR}░{R}▒{DR}▓{R}▒{DR}░{R}▒{OR}▓{DR}▒{R}░{DR}▒{R}▓{DR}░{R}▒{DR}▓{R}▒{DR}░{R}▒{DR}▓{R}",
+        FLAME_COLORS = [
+            [R,  OR, Y,  OR, R,  Y,  OR, R,  Y,  OR, R,  OR],
+            [OR, Y,  R,  Y,  OR, R,  Y,  OR, R,  Y,  OR, Y ],
+            [Y,  R,  OR, R,  Y,  OR, R,  Y,  OR, R,  Y,  R ],
+            [R,  Y,  OR, Y,  R,  OR, Y,  R,  OR, Y,  R,  OR],
         ]
-        # Side flame strips (8 chars each side) per row, 4 frame variants
-        # indexed [frame][row_index % 4]
-        SF = [
-            [f"{R}▒{OR}▓{Y}░{OR}▒{R}▓{DR}░{R}▒{OR}", f"{OR}░{Y}▓{OR}▒{R}░{OR}▓{Y}▒{OR}░", f"{DR}▒{R}▓{OR}░{Y}▒{OR}▓{R}▒{DR}░", f"{OR}▓{R}░{DR}▒{OR}▓{Y}░{R}▒{OR}▒"],
-            [f"{OR}▓{Y}░{OR}▒{DR}▓{R}░{OR}▒{Y}▓{OR}", f"{R}▒{OR}▓{Y}░{R}▒{DR}▓{OR}░{R}▒", f"{Y}░{OR}▒{R}▓{DR}░{OR}▒{Y}▓{R}░", f"{DR}▓{R}░{OR}▒{Y}▓{OR}░{R}▒{DR}▒"],
-            [f"{Y}▒{R}▓{OR}░{Y}▒{OR}▓{DR}▒{R}░{OR}▒", f"{OR}▓{Y}░{OR}▒{R}▓{DR}░{OR}▒{Y}▓", f"{R}░{DR}▒{OR}▓{Y}░{R}▒{OR}▓{DR}░", f"{OR}▒{Y}▓{R}░{OR}▒{DR}▓{R}░{Y}▒{OR}"],
-            [f"{DR}▓{R}▒{OR}░{DR}▓{R}░{OR}▒{Y}▓{OR}░", f"{Y}░{OR}▓{R}▒{Y}░{OR}▓{DR}▒{R}░", f"{OR}▒{DR}▓{R}░{OR}▒{Y}▓{OR}░{R}▒", f"{R}▓{OR}░{Y}▒{R}▓{DR}░{OR}▒{R}▓{Y}"],
-        ]
+        FLAME_ROWS = 6   # rows of flame above skull
 
-        def _render_flames(f_idx):
-            """Return top flame lines expanded with f_idx offsets."""
-            out = []
-            raw = TOP_FLAME_TEMPLATES
-            for row_i, tmpl in enumerate(raw):
-                # shift which chars appear by cycling via f_idx
-                pool = FIRE[(f_idx + row_i) % 4]
-                rendered = tmpl.format(Y=Y, OR=OR, R=R, DR=DR)
-                out.append(indent + rendered + RS)
-            return out
+        def _flame_line(f_idx, row, width):
+            """Build one colored flame line of given width."""
+            pool  = FLAME_POOL[(f_idx + row) % 4]
+            cols  = FLAME_COLORS[(f_idx + row) % 4]
+            chars = (pool * ((width // len(pool)) + 2))[:width]
+            out, ci = '', 0
+            for ch in chars:
+                out += cols[ci % len(cols)] + ch
+                ci += 1
+            return out + RS
 
-        def _render_skull(f_idx, cycle):
-            """Return skull lines with side flames and animated eyes."""
-            out = []
-            eye_bright = WH if (f_idx + cycle) % 2 == 0 else Y
-            for ri, (col, row_art) in enumerate(skull_rows):
-                side = SF[f_idx % 4][ri % 4] + RS
-                if ri in EYE_ROWS:
-                    # Replace the socket area color
-                    line = col + row_art.replace('▓▓▒░░', f'▓▒{BK}') \
-                                       .replace('░░▒▓▓', f'{BK}▒▓') + RS
-                    line = eye_bright + row_art + RS  # simpler: glow eyes
-                    # Keep eye socket regions dark
-                    line = col + row_art + RS
-                    rendered = indent + side + line + side
-                else:
-                    rendered = indent + side + col + row_art + RS + side
-                out.append(rendered)
-            return out
-
-        def _write_frame(f_idx, cycle, first):
-            n_top = len(TOP_FLAME_TEMPLATES)
-            n_sk  = len(skull_rows)
-            total = n_top + n_sk
+        def _write_frame(f_idx, first):
+            total = FLAME_ROWS + len(SKULL)
             if not first:
                 sys.stdout.write(f'\033[{total}A')
-            for line in _render_flames(f_idx):
-                sys.stdout.write(line + '\n')
-            for line in _render_skull(f_idx, cycle):
-                sys.stdout.write(line + '\n')
+            # flames
+            for row in range(FLAME_ROWS):
+                density = FLAME_ROWS - row   # top rows sparser
+                line = _flame_line(f_idx, row, skull_w)
+                sys.stdout.write(indent + line + '\n')
+            # skull
+            for ri, srow in enumerate(SKULL):
+                col = ROW_COLORS[ri] if ri < len(ROW_COLORS) else OR
+                sys.stdout.write(indent + col + srow + RS + '\n')
             sys.stdout.flush()
 
         sys.stdout.write('\033[?25l')
         sys.stdout.flush()
         try:
             first = True
-            for cycle in range(4):
+            for cycle in range(5):       # 5 cycles × 4 frames = 20 frames
                 for fi in range(4):
-                    _write_frame(fi, cycle, first)
+                    _write_frame(fi, first)
                     first = False
-                    time.sleep(0.09)
+                    time.sleep(0.1)
             time.sleep(0.4)
         finally:
             sys.stdout.write('\033[?25h')
